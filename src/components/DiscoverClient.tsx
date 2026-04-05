@@ -12,6 +12,7 @@ import { PreferenceBar } from "@/components/PreferenceBar";
 import { TrendChips } from "@/components/TrendChips";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { VideoResults } from "@/components/VideoResults";
+import { MobileNav } from "@/components/MobileNav";
 
 type TrendsSource = "google-trends" | "fallback";
 
@@ -104,24 +105,25 @@ export function DiscoverClient() {
 
   if (!ready) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 md:pb-8 pb-24">
         <div className="h-96 animate-pulse rounded-2xl bg-zinc-800/40" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+    <>
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 sm:px-6 md:pb-8 pb-24">
+      <div className="mb-6 md:mb-8">
+        <h1 className="font-display text-2xl md:text-3xl lg:text-4xl font-semibold tracking-tight text-white">
           Discover
         </h1>
-        <p className="mt-2 max-w-xl text-sm text-zinc-400">
+        <p className="mt-2 max-w-xl text-sm text-zinc-400 hidden sm:block">
           Topic chips use{" "}
           <span className="text-zinc-300">Google Trends</span> related
           searches (past 7 days), then YouTube search — all inline here.
         </p>
-        <p className="mt-2 max-w-xl text-xs leading-relaxed text-zinc-500">
+        <p className="mt-2 max-w-xl text-xs leading-relaxed text-zinc-500 hidden md:block">
           Looking for <span className="text-zinc-400">free movies</span>? Trailer
           mode favors promos. Type or pick a Trends chip like &quot;movies
           free&quot; / &quot;full movies&quot;, or include &quot;free&quot; +
@@ -131,7 +133,7 @@ export function DiscoverClient() {
         </p>
       </div>
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 hidden md:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <PreferenceBar
           value={preference}
           onChange={setPreference}
@@ -151,18 +153,18 @@ export function DiscoverClient() {
         </div>
       ) : null}
 
-      <form onSubmit={onSubmitSearch} className="mb-6 flex flex-col gap-3 sm:flex-row">
+      <form onSubmit={onSubmitSearch} className="mb-6 md:mb-8 flex flex-col gap-2 sm:flex-row sm:gap-3">
         <input
           type="search"
           value={queryInput}
           onChange={(e) => setQueryInput(e.target.value)}
           placeholder="Search videos…"
-          className="min-h-11 flex-1 rounded-xl border border-white/10 bg-zinc-900/60 px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
+          className="min-h-11 flex-1 rounded-lg md:rounded-xl border border-white/10 bg-zinc-900/60 px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
         />
         <button
           type="submit"
           disabled={loading || !queryInput.trim()}
-          className="rounded-xl bg-[var(--accent)] px-6 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-40"
+          className="rounded-lg md:rounded-xl bg-[var(--accent)] px-4 md:px-6 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-40 whitespace-nowrap"
         >
           Search
         </button>
@@ -180,7 +182,7 @@ export function DiscoverClient() {
           <span className="text-xs text-zinc-600">Starter topics</span>
         )}
       </div>
-      <div className="mb-10">
+      <div className="mb-8 md:mb-10">
         <TrendChips
           trends={trendChips}
           busy={loading}
@@ -195,8 +197,8 @@ export function DiscoverClient() {
         />
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-5 lg:gap-8">
-        <section className="lg:col-span-2">
+      <div className="grid gap-6 md:gap-10 lg:grid-cols-5 lg:gap-8">
+        <section className="lg:col-span-2 order-1 md:order-none">
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
             Now playing
           </h2>
@@ -210,7 +212,7 @@ export function DiscoverClient() {
             </p>
           ) : null}
         </section>
-        <section className="lg:col-span-3">
+        <section className="lg:col-span-3 order-2 md:order-none">
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
             Results
           </h2>
@@ -222,6 +224,12 @@ export function DiscoverClient() {
           />
         </section>
       </div>
-    </div>
+      </div>
+      <MobileNav
+        preference={preference}
+        onPreferenceChange={setPreference}
+        disabled={loading}
+      />
+    </>
   );
 }
