@@ -65,6 +65,7 @@ export function DiscoverClient() {
     trendsAbort.current = ac;
     setTrendsLoading(true);
 
+    const timeout = setTimeout(() => ac.abort(), 10000); // 10 second timeout
     const url = query
       ? `/api/trends?query=${encodeURIComponent(query)}&geo=${encodeURIComponent(geo)}`
       : `/api/trends?geo=${encodeURIComponent(geo)}`;
@@ -78,8 +79,13 @@ export function DiscoverClient() {
           setTrendsSource(data.source ?? "fallback");
         }
       })
-      .catch(() => {})
-      .finally(() => setTrendsLoading(false));
+      .catch(() => {
+        // Silently fall back on error
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+        setTrendsLoading(false);
+      });
   }, [queryInput, filterTrends]);
 
   // On mount / location change, load daily trending
@@ -98,6 +104,7 @@ export function DiscoverClient() {
 
     searchAbort.current?.abort();
     const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 15000); // 15 second timeout
     searchAbort.current = ac;
 
     try {
@@ -122,11 +129,13 @@ export function DiscoverClient() {
 
       // Update trends relative to what was searched
       fetchTrends(q, location);
-    } catch {
-      setError("Network error");
+    } catch (err) {
+      const isAborted = err instanceof Error && err.name === "AbortError";
+      setError(isAborted ? "Search timed out. Try again." : "Network error");
       setItems([]);
       setActive(null);
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }, [location, addToHistory, fetchTrends]);

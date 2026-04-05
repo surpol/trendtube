@@ -15,7 +15,20 @@ export async function GET(request: Request) {
   const sp = searchParams.get("sp")?.trim() || undefined;
 
   try {
-    const items = await fetchYoutubeSearchItems(q, 24, sp ? { sp } : undefined);
+    // Set a 12 second timeout for the search
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const searchPromise = fetchYoutubeSearchItems(q, 24, sp ? { sp } : undefined);
+    const items = await Promise.race([
+      searchPromise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Search timeout")), 12000),
+      ),
+    ]);
+
+    clearTimeout(timeout);
+
     if (items.length === 0) {
       return NextResponse.json({
         items: [],
@@ -25,6 +38,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ items });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Search failed";
-    return NextResponse.json({ error: message, items: [] }, { status: 502 });
+    return NextResponse.json(
+      { error: message, items: [] },
+      { status: e instanceof Error && e.message === "Search timeout" ? 504 : 502 },
+    );
   }
 }
