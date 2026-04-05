@@ -100,6 +100,16 @@ const GENERIC_FALLBACK: TrendItem[] = [
   { query: "Cooking", value: 60 },
 ];
 
+/** Race a promise against a timeout. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout")), ms),
+    ),
+  ]);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query")?.trim() || "";
@@ -110,29 +120,34 @@ export async function GET(request: Request) {
 
   try {
     if (query) {
-      // Fetch related queries for the specific search term
-      const raw = await googleTrends.relatedQueries({
-        keyword: query,
-        startTime,
-        endTime,
-        geo,
-        hl: "en-US",
-      });
+      const raw = await withTimeout(
+        googleTrends.relatedQueries({
+          keyword: query,
+          startTime,
+          endTime,
+          geo,
+          hl: "en-US",
+        }),
+        8000,
+      );
 
       const queries = extractRelatedQueries(raw);
       if (queries.length > 0) {
         return NextResponse.json({ queries, source: "google-trends" as const });
       }
     } else {
-      // No query — fetch today's trending searches for the region
-      const raw = await googleTrends.dailyTrends({ geo, hl: "en-US" });
+      const raw = await withTimeout(
+        googleTrends.dailyTrends({ geo, hl: "en-US" }),
+        8000,
+      );
+
       const queries = extractDailyTrends(raw);
       if (queries.length > 0) {
         return NextResponse.json({ queries, source: "google-trends" as const });
       }
     }
   } catch {
-    // fall through to fallback
+    // Timeout or API error — fall through to fallback
   }
 
   return NextResponse.json({
