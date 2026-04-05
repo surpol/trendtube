@@ -6,6 +6,7 @@ import { useLocation } from "@/hooks/useLocation";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { TrendChips } from "@/components/TrendChips";
 import { SearchHistory } from "@/components/SearchHistory";
+import { KeyboardHints } from "@/components/KeyboardHints";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { VideoResults } from "@/components/VideoResults";
 
@@ -140,6 +141,48 @@ export function DiscoverClient() {
     void runSearch(query);
   };
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't interfere with input focus
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const currentIndex = items.findIndex((item) => item.id === active?.id);
+
+      switch (e.key) {
+        case "ArrowUp":
+          e.preventDefault();
+          if (items.length === 0) return;
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+          setActive(items[prevIndex]);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          if (items.length === 0) return;
+          const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+          setActive(items[nextIndex]);
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (active && queryInput.trim()) {
+            void runSearch(queryInput);
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setActive(null);
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [items, active, queryInput, runSearch]);
+
   if (!locationReady || !historyReady) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 pb-8">
@@ -250,6 +293,8 @@ export function DiscoverClient() {
           />
         </section>
       </div>
+
+      <KeyboardHints />
     </div>
   );
 }

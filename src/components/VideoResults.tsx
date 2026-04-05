@@ -76,6 +76,22 @@ export function VideoResults({
                 <p className="mt-1 line-clamp-1 text-xs text-zinc-500 hidden md:block">
                   {item.channelTitle}
                 </p>
+                {(item.duration || item.viewCount) && (
+                  <div className="mt-2 flex gap-2 text-xs text-zinc-600">
+                    {item.duration && (
+                      <span className="inline-flex items-center gap-1">
+                        <span>⏱</span>
+                        {item.duration}
+                      </span>
+                    )}
+                    {item.viewCount && (
+                      <span className="inline-flex items-center gap-1">
+                        <span>👁</span>
+                        {item.viewCount}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </button>
           </li>
