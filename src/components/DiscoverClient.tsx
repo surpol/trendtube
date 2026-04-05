@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { YoutubeSearchItem } from "@/lib/types";
 import { useLocation } from "@/hooks/useLocation";
-import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { TrendChips } from "@/components/TrendChips";
-import { SearchHistory } from "@/components/SearchHistory";
 import { KeyboardHints } from "@/components/KeyboardHints";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { VideoResults } from "@/components/VideoResults";
@@ -30,11 +28,8 @@ const GENERIC_FALLBACK: TrendItem[] = [
 
 export function DiscoverClient() {
   const { location, ready: locationReady } = useLocation();
-  const { history, addToHistory, clearHistory, ready: historyReady } =
-    useSearchHistory();
 
   const [queryInput, setQueryInput] = useState("");
-  const [showHistory, setShowHistory] = useState(false);
   const [items, setItems] = useState<YoutubeSearchItem[]>([]);
   const [active, setActive] = useState<YoutubeSearchItem | null>(null);
   const [loading, setLoading] = useState(false);
@@ -98,8 +93,6 @@ export function DiscoverClient() {
     async (q: string) => {
       if (!q.trim()) return;
 
-      setShowHistory(false);
-      addToHistory(q);
       setLoading(true);
       setError(null);
 
@@ -140,17 +133,12 @@ export function DiscoverClient() {
         setLoading(false);
       }
     },
-    [addToHistory, fetchTrends],
+    [fetchTrends],
   );
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     void runSearch(queryInput);
-  };
-
-  const handleHistorySelect = (query: string) => {
-    setQueryInput(query);
-    void runSearch(query);
   };
 
   // Keyboard navigation
@@ -188,7 +176,7 @@ export function DiscoverClient() {
 
   /* ---- Render ---- */
 
-  if (!locationReady || !historyReady) {
+  if (!locationReady) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 pb-8">
         <div className="h-96 animate-pulse rounded-2xl bg-zinc-800/40" />
@@ -215,22 +203,13 @@ export function DiscoverClient() {
         style={{ animationDelay: "50ms" }}
       >
         <div className="flex gap-2 sm:gap-3">
-          <div className="flex-1 relative">
-            <input
-              type="search"
-              value={queryInput}
-              onChange={(e) => setQueryInput(e.target.value)}
-              onFocus={() => setShowHistory(true)}
-              placeholder="Search videos…"
-              className="w-full min-h-12 sm:min-h-11 rounded-lg sm:rounded-xl border border-white/10 bg-zinc-900/60 px-3 sm:px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40 transition touch-manipulation"
-            />
-            <SearchHistory
-              history={history}
-              onSelect={handleHistorySelect}
-              onClear={clearHistory}
-              show={showHistory && queryInput === ""}
-            />
-          </div>
+          <input
+            type="search"
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
+            placeholder="Search videos…"
+            className="flex-1 min-h-12 sm:min-h-11 rounded-lg sm:rounded-xl border border-white/10 bg-zinc-900/60 px-3 sm:px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40 transition touch-manipulation"
+          />
           <button
             type="submit"
             disabled={loading || !queryInput.trim()}
