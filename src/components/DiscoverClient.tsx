@@ -12,15 +12,20 @@ import { VideoResults } from "@/components/VideoResults";
 
 type TrendsSource = "google-trends" | "fallback";
 
-const GENERIC_FALLBACK = [
-  "Music videos",
-  "Latest news",
-  "Movie trailers",
-  "Sports highlights",
-  "Tech reviews",
-  "Gaming",
-  "Comedy",
-  "Cooking",
+type TrendItem = {
+  query: string;
+  value?: number;
+};
+
+const GENERIC_FALLBACK: TrendItem[] = [
+  { query: "Music videos", value: 75 },
+  { query: "Latest news", value: 85 },
+  { query: "Movie trailers", value: 70 },
+  { query: "Sports highlights", value: 80 },
+  { query: "Tech reviews", value: 65 },
+  { query: "Gaming", value: 90 },
+  { query: "Comedy", value: 72 },
+  { query: "Cooking", value: 60 },
 ];
 
 export function DiscoverClient() {
@@ -33,8 +38,8 @@ export function DiscoverClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [trendChips, setTrendChips] = useState<string[]>(GENERIC_FALLBACK);
-  const [filteredTrends, setFilteredTrends] = useState<string[]>(GENERIC_FALLBACK);
+  const [trendChips, setTrendChips] = useState<TrendItem[]>(GENERIC_FALLBACK);
+  const [filteredTrends, setFilteredTrends] = useState<TrendItem[]>(GENERIC_FALLBACK);
   const [trendsSource, setTrendsSource] = useState<TrendsSource>("fallback");
   const [trendsLoading, setTrendsLoading] = useState(true);
   const trendsAbort = useRef<AbortController | null>(null);
@@ -48,7 +53,7 @@ export function DiscoverClient() {
     }
     const lower = query.toLowerCase();
     const filtered = trendChips.filter((chip) =>
-      chip.toLowerCase().includes(lower),
+      chip.query.toLowerCase().includes(lower),
     );
     setFilteredTrends(filtered);
   }, [trendChips]);
@@ -72,7 +77,7 @@ export function DiscoverClient() {
 
     fetch(url, { signal: ac.signal })
       .then((res) => res.json())
-      .then((data: { queries?: string[]; source?: TrendsSource }) => {
+      .then((data: { queries?: TrendItem[]; source?: TrendsSource }) => {
         if (data.queries && data.queries.length > 0) {
           setTrendChips(data.queries);
           filterTrends(queryInput);
@@ -261,9 +266,9 @@ export function DiscoverClient() {
         <TrendChips
           trends={filteredTrends}
           busy={loading}
-          onPick={(label) => {
-            setQueryInput(label);
-            void runSearch(label);
+          onPick={(query) => {
+            setQueryInput(query);
+            void runSearch(query);
           }}
         />
         {queryInput && filteredTrends.length === 0 && trendChips.length > 0 && (

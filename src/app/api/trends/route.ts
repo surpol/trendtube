@@ -7,9 +7,10 @@ const googleTrends = require("google-trends-api") as {
   dailyTrends: (opts: Record<string, unknown>) => Promise<string>;
 };
 
-type RankedKeyword = { query?: string };
+type RankedKeyword = { query?: string; value?: number };
+type TrendItem = { query: string; value?: number; isRising?: boolean };
 
-function extractRelatedQueries(jsonStr: string): string[] {
+function extractRelatedQueries(jsonStr: string): TrendItem[] {
   let data: {
     default?: {
       rankedList?: Array<{ rankedKeyword?: RankedKeyword[] }>;
@@ -23,7 +24,7 @@ function extractRelatedQueries(jsonStr: string): string[] {
 
   const lists = data.default?.rankedList ?? [];
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: TrendItem[] = [];
 
   for (const block of lists) {
     for (const kw of block.rankedKeyword ?? []) {
@@ -32,18 +33,30 @@ function extractRelatedQueries(jsonStr: string): string[] {
       const key = q.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push(q);
+      out.push({
+        query: q,
+        value: kw.value,
+      });
     }
   }
 
   return out.slice(0, 20);
 }
 
-function extractDailyTrends(jsonStr: string): string[] {
+function extractDailyTrends(jsonStr: string): TrendItem[] {
   let data: {
     default?: {
       trendingSearchesDays?: Array<{
-        trendingSearches?: Array<{ title?: { query?: string } }>;
+        trendingSearches?: Array<{
+          title?: { query?: string };
+          trafficSparkline?: string;
+          relatedQueries?: Array<{ query?: string }>;
+          articleRenderingMetadata?: {
+            trendingSearchesDayUE?: {
+              trafficVolume?: Array<{ trafficVolume?: { simpleText?: string } }>;
+            };
+          };
+        }>;
       }>;
     };
   };
@@ -57,7 +70,7 @@ function extractDailyTrends(jsonStr: string): string[] {
 
   const days = data.default?.trendingSearchesDays ?? [];
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: TrendItem[] = [];
 
   for (const day of days) {
     for (const trend of day.trendingSearches ?? []) {
@@ -66,22 +79,25 @@ function extractDailyTrends(jsonStr: string): string[] {
       const key = q.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push(q);
+      out.push({
+        query: q,
+        value: undefined, // Daily trends don't provide normalized values
+      });
     }
   }
 
   return out.slice(0, 20);
 }
 
-const GENERIC_FALLBACK = [
-  "Music videos",
-  "Latest news",
-  "Movie trailers",
-  "Sports highlights",
-  "Tech reviews",
-  "Gaming",
-  "Comedy",
-  "Cooking",
+const GENERIC_FALLBACK: TrendItem[] = [
+  { query: "Music videos", value: 75 },
+  { query: "Latest news", value: 85 },
+  { query: "Movie trailers", value: 70 },
+  { query: "Sports highlights", value: 80 },
+  { query: "Tech reviews", value: 65 },
+  { query: "Gaming", value: 90 },
+  { query: "Comedy", value: 72 },
+  { query: "Cooking", value: 60 },
 ];
 
 export async function GET(request: Request) {
