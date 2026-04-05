@@ -22,8 +22,14 @@ export function VideoResults({
         {Array.from({ length: 6 }).map((_, i) => (
           <li
             key={i}
-            className="h-28 sm:h-36 animate-pulse rounded-lg md:rounded-xl bg-zinc-800/60"
-          />
+            className="overflow-hidden rounded-lg md:rounded-xl border border-white/5 bg-zinc-900/40"
+          >
+            <div className="relative aspect-video w-full bg-zinc-800/60 animate-pulse" />
+            <div className="p-2 md:p-3 space-y-2">
+              <div className="h-4 bg-zinc-800/60 rounded animate-pulse" />
+              <div className="h-3 bg-zinc-800/60 rounded w-3/4 animate-pulse hidden md:block" />
+            </div>
+          </li>
         ))}
       </ul>
     );
@@ -39,32 +45,32 @@ export function VideoResults({
 
   return (
     <ul className="grid gap-2 sm:gap-3 grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
-      {items.map((item) => {
+      {items.map((item, idx) => {
         const active = item.id === activeId;
         return (
-          <li key={item.id}>
+          <li key={item.id} style={{ animationDelay: `${idx * 50}ms` }} className="animate-in fade-in duration-300">
             <button
               type="button"
               onClick={() => onSelect(item)}
-              className={`group w-full overflow-hidden rounded-lg md:rounded-xl border text-left transition ${
+              className={`group w-full overflow-hidden rounded-lg md:rounded-xl border text-left transition-all ${
                 active
-                  ? "border-[var(--accent)] ring-1 ring-[var(--accent)]/40"
-                  : "border-white/10 hover:border-white/20"
+                  ? "border-[var(--accent)] ring-1 ring-[var(--accent)]/40 scale-105"
+                  : "border-white/10 hover:border-white/20 hover:scale-102"
               } bg-zinc-900/40`}
             >
-              <div className="relative aspect-video w-full bg-zinc-800">
+              <div className="relative aspect-video w-full bg-zinc-800 overflow-hidden">
                 {item.thumbnailUrl ? (
                   <Image
                     src={item.thumbnailUrl}
                     alt={item.title}
                     fill
-                    className="object-cover transition group-hover:opacity-90"
+                    className="object-cover transition-all duration-300 group-hover:opacity-90 group-hover:scale-105"
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                   />
                 ) : null}
               </div>
               <div className="p-2 md:p-3">
-                <p className="line-clamp-2 text-xs md:text-sm font-medium text-zinc-100">
+                <p className="line-clamp-2 text-xs md:text-sm font-medium text-zinc-100 transition-colors group-hover:text-white">
                   {item.title}
                 </p>
                 <p className="mt-1 line-clamp-1 text-xs text-zinc-500 hidden md:block">
