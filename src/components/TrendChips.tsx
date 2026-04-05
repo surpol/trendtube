@@ -8,14 +8,14 @@ type Props = {
 
 export function TrendChips({ trends, onPick, busy }: Props) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
       {trends.map((label) => (
         <button
           key={label}
           type="button"
           disabled={busy}
           onClick={() => onPick(label)}
-          className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-white disabled:opacity-50"
+          className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/10 hover:text-white disabled:opacity-50"
         >
           {label}
         </button>

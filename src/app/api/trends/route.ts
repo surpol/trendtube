@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
-import type { Preference } from "@/lib/types";
-import { FALLBACK_TREND_SEEDS } from "@/lib/trends";
 
 // CJS package — require avoids ESM interop issues in the App Router bundle.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const googleTrends = require("google-trends-api") as {
   relatedQueries: (opts: Record<string, unknown>) => Promise<string>;
-};
-
-const KEYWORD_MAP: Record<
-  Preference,
-  { keyword: string; property: "" | "news" | "youtube" }
-> = {
-  news: { keyword: "news", property: "news" },
-  music: { keyword: "music", property: "youtube" },
-  movies: { keyword: "movies", property: "youtube" },
+  dailyTrends: (opts: Record<string, unknown>) => Promise<string>;
 };
 
 type RankedKeyword = { query?: string };
@@ -36,8 +26,7 @@ function extractRelatedQueries(jsonStr: string): string[] {
   const out: string[] = [];
 
   for (const block of lists) {
-    const bucket = block.rankedKeyword ?? [];
-    for (const kw of bucket) {
+    for (const kw of block.rankedKeyword ?? []) {
       const q = kw.query?.trim();
       if (!q) continue;
       const key = q.toLowerCase();
@@ -50,50 +39,88 @@ function extractRelatedQueries(jsonStr: string): string[] {
   return out.slice(0, 20);
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const preference = searchParams.get("preference") as Preference | null;
-  const geo = searchParams.get("geo")?.trim() || "US";
-
-  if (!preference || !KEYWORD_MAP[preference]) {
-    return NextResponse.json(
-      { error: "Invalid or missing preference", queries: [] },
-      { status: 400 },
-    );
+function extractDailyTrends(jsonStr: string): string[] {
+  let data: {
+    default?: {
+      trendingSearchesDays?: Array<{
+        trendingSearches?: Array<{ title?: { query?: string } }>;
+      }>;
+    };
+  };
+  try {
+    // daily trends response wraps JSON in ")]}'\n"
+    const cleaned = jsonStr.replace(/^\)\]\}',?\n/, "");
+    data = JSON.parse(cleaned) as typeof data;
+  } catch {
+    return [];
   }
 
-  const { keyword, property } = KEYWORD_MAP[preference];
+  const days = data.default?.trendingSearchesDays ?? [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const day of days) {
+    for (const trend of day.trendingSearches ?? []) {
+      const q = trend.title?.query?.trim();
+      if (!q) continue;
+      const key = q.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(q);
+    }
+  }
+
+  return out.slice(0, 20);
+}
+
+const GENERIC_FALLBACK = [
+  "Music videos",
+  "Latest news",
+  "Movie trailers",
+  "Sports highlights",
+  "Tech reviews",
+  "Gaming",
+  "Comedy",
+  "Cooking",
+];
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get("query")?.trim() || "";
+  const geo = searchParams.get("geo")?.trim() || "US";
+
   const endTime = new Date();
   const startTime = new Date(endTime.getTime() - 7 * 86400000);
 
   try {
-    const raw = await googleTrends.relatedQueries({
-      keyword,
-      startTime,
-      endTime,
-      geo,
-      property,
-      hl: "en-US",
-    });
-
-    const queries = extractRelatedQueries(raw);
-    if (queries.length === 0) {
-      return NextResponse.json({
-        queries: FALLBACK_TREND_SEEDS[preference],
-        source: "fallback" as const,
-        reason: "empty",
+    if (query) {
+      // Fetch related queries for the specific search term
+      const raw = await googleTrends.relatedQueries({
+        keyword: query,
+        startTime,
+        endTime,
+        geo,
+        hl: "en-US",
       });
-    }
 
-    return NextResponse.json({
-      queries,
-      source: "google-trends" as const,
-    });
+      const queries = extractRelatedQueries(raw);
+      if (queries.length > 0) {
+        return NextResponse.json({ queries, source: "google-trends" as const });
+      }
+    } else {
+      // No query — fetch today's trending searches for the region
+      const raw = await googleTrends.dailyTrends({ geo, hl: "en-US" });
+      const queries = extractDailyTrends(raw);
+      if (queries.length > 0) {
+        return NextResponse.json({ queries, source: "google-trends" as const });
+      }
+    }
   } catch {
-    return NextResponse.json({
-      queries: FALLBACK_TREND_SEEDS[preference],
-      source: "fallback" as const,
-      reason: "error",
-    });
+    // fall through to fallback
   }
+
+  return NextResponse.json({
+    queries: GENERIC_FALLBACK,
+    source: "fallback" as const,
+  });
 }

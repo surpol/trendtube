@@ -1,78 +1,79 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import {
-  buildSearchQuery,
-  buildTrendChipQuery,
-} from "@/lib/search-query";
-import { FALLBACK_TREND_SEEDS } from "@/lib/trends";
-import type { Preference, YoutubeSearchItem } from "@/lib/types";
-import { usePreference } from "@/hooks/usePreference";
-import { PreferenceBar } from "@/components/PreferenceBar";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { YoutubeSearchItem } from "@/lib/types";
+import { useLocation } from "@/hooks/useLocation";
+import { LocationSelector } from "@/components/LocationSelector";
 import { TrendChips } from "@/components/TrendChips";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { VideoResults } from "@/components/VideoResults";
-import { MobileNav } from "@/components/MobileNav";
 
 type TrendsSource = "google-trends" | "fallback";
 
+const GENERIC_FALLBACK = [
+  "Music videos",
+  "Latest news",
+  "Movie trailers",
+  "Sports highlights",
+  "Tech reviews",
+  "Gaming",
+  "Comedy",
+  "Cooking",
+];
+
 export function DiscoverClient() {
-  const { preference, setPreference, ready } = usePreference();
+  const { location, setLocation, ready: locationReady, detecting } = useLocation();
   const [queryInput, setQueryInput] = useState("");
   const [items, setItems] = useState<YoutubeSearchItem[]>([]);
   const [active, setActive] = useState<YoutubeSearchItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hint, setHint] = useState<string | null>(null);
 
-  const [trendChips, setTrendChips] = useState<string[]>(
-    () => FALLBACK_TREND_SEEDS.music,
-  );
+  const [trendChips, setTrendChips] = useState<string[]>(GENERIC_FALLBACK);
   const [trendsSource, setTrendsSource] = useState<TrendsSource>("fallback");
   const [trendsLoading, setTrendsLoading] = useState(true);
+  const trendsAbort = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    setTrendsLoading(true);
-    setTrendChips(FALLBACK_TREND_SEEDS[preference]);
-    setTrendsSource("fallback");
-
+  // Fetch trends for a given query (or daily trends if empty)
+  const fetchTrends = useCallback((query: string, geo: string) => {
+    trendsAbort.current?.abort();
     const ac = new AbortController();
-    fetch(`/api/trends?preference=${encodeURIComponent(preference)}&geo=US`, {
-      signal: ac.signal,
-    })
+    trendsAbort.current = ac;
+    setTrendsLoading(true);
+
+    const url = query
+      ? `/api/trends?query=${encodeURIComponent(query)}&geo=${encodeURIComponent(geo)}`
+      : `/api/trends?geo=${encodeURIComponent(geo)}`;
+
+    fetch(url, { signal: ac.signal })
       .then((res) => res.json())
-      .then(
-        (data: {
-          queries?: string[];
-          source?: TrendsSource;
-        }) => {
-          if (data.queries && data.queries.length > 0) {
-            setTrendChips(data.queries);
-            setTrendsSource(data.source ?? "fallback");
-          }
-        },
-      )
+      .then((data: { queries?: string[]; source?: TrendsSource }) => {
+        if (data.queries && data.queries.length > 0) {
+          setTrendChips(data.queries);
+          setTrendsSource(data.source ?? "fallback");
+        }
+      })
       .catch(() => {})
       .finally(() => setTrendsLoading(false));
+  }, []);
 
-    return () => ac.abort();
-  }, [preference]);
+  // On mount / location change, load daily trending
+  useEffect(() => {
+    if (!locationReady) return;
+    fetchTrends("", location);
+  }, [location, locationReady, fetchTrends]);
 
-  const runYoutubeSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async (q: string) => {
     if (!q.trim()) return;
 
     setLoading(true);
     setError(null);
-    setHint(null);
 
     try {
-      const res = await fetch(
-        `/api/youtube/search?q=${encodeURIComponent(q)}`,
-      );
+      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(q)}`);
       const data = (await res.json()) as {
         items?: YoutubeSearchItem[];
         error?: string;
-        hint?: string;
       };
 
       if (!res.ok) {
@@ -83,12 +84,11 @@ export function DiscoverClient() {
       }
 
       setItems(data.items ?? []);
-      if (data.hint && (!data.items || data.items.length === 0)) {
-        setHint(data.hint);
-      }
       const first = data.items?.[0];
-      if (first) setActive(first);
-      else setActive(null);
+      setActive(first ?? null);
+
+      // Update trends relative to what was searched
+      fetchTrends(q, location);
     } catch {
       setError("Network error");
       setItems([]);
@@ -96,56 +96,78 @@ export function DiscoverClient() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [location, fetchTrends]);
 
-  const onSubmitSearch = (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    void runYoutubeSearch(buildSearchQuery(queryInput, preference));
+    void runSearch(queryInput);
   };
 
-  if (!ready) {
+  if (!locationReady) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 md:pb-8 pb-24">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 pb-8">
         <div className="h-96 animate-pulse rounded-2xl bg-zinc-800/40" />
       </div>
     );
   }
 
   return (
-    <>
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 sm:px-6 md:pb-8 pb-24">
-      <div className="mb-6 md:mb-8">
-        <h1 className="font-display text-2xl md:text-3xl lg:text-4xl font-semibold tracking-tight text-white">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 sm:px-6 pb-8">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-white">
           Discover
         </h1>
-        <p className="mt-2 max-w-xl text-sm text-zinc-400 hidden sm:block">
-          Topic chips use{" "}
-          <span className="text-zinc-300">Google Trends</span> related
-          searches (past 7 days), then YouTube search — all inline here.
-        </p>
-        <p className="mt-2 max-w-xl text-xs leading-relaxed text-zinc-500 hidden md:block">
-          Looking for <span className="text-zinc-400">free movies</span>? Trailer
-          mode favors promos. Type or pick a Trends chip like &quot;movies
-          free&quot; / &quot;full movies&quot;, or include &quot;free&quot; +
-          &quot;movie&quot; in the search box — we stop adding the trailer
-          suffix when that intent is clear. Most new releases are rent/purchase,
-          not free.
+        <p className="mt-1 text-sm text-zinc-500 hidden sm:block">
+          Search anything — trending topics update to match your query.
         </p>
       </div>
 
-      <div className="mb-6 hidden md:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PreferenceBar
-          value={preference}
-          onChange={setPreference}
+      {/* Search + Location */}
+      <form onSubmit={onSubmit} className="mb-4 flex gap-2">
+        <input
+          type="search"
+          value={queryInput}
+          onChange={(e) => setQueryInput(e.target.value)}
+          placeholder="Search videos…"
+          className="min-h-11 flex-1 rounded-xl border border-white/10 bg-zinc-900/60 px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
+        />
+        <LocationSelector
+          value={location}
+          onChange={setLocation}
           disabled={loading}
+          detecting={detecting}
+        />
+        <button
+          type="submit"
+          disabled={loading || !queryInput.trim()}
+          className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-40 whitespace-nowrap"
+        >
+          Search
+        </button>
+      </form>
+
+      {/* Trend chips — horizontal scrollable row */}
+      <div className="mb-2 flex items-center gap-2">
+        <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-zinc-500">
+          Trending
+        </span>
+        {trendsLoading ? (
+          <span className="text-xs text-zinc-600">Updating…</span>
+        ) : trendsSource === "google-trends" ? (
+          <span className="text-xs text-emerald-500/80">Live</span>
+        ) : null}
+      </div>
+      <div className="mb-8">
+        <TrendChips
+          trends={trendChips}
+          busy={loading}
+          onPick={(label) => {
+            setQueryInput(label);
+            void runSearch(label);
+          }}
         />
       </div>
-
-      {hint ? (
-        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
-          {hint}
-        </div>
-      ) : null}
 
       {error ? (
         <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -153,66 +175,18 @@ export function DiscoverClient() {
         </div>
       ) : null}
 
-      <form onSubmit={onSubmitSearch} className="mb-6 md:mb-8 flex flex-col gap-2 sm:flex-row sm:gap-3">
-        <input
-          type="search"
-          value={queryInput}
-          onChange={(e) => setQueryInput(e.target.value)}
-          placeholder="Search videos…"
-          className="min-h-11 flex-1 rounded-lg md:rounded-xl border border-white/10 bg-zinc-900/60 px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
-        />
-        <button
-          type="submit"
-          disabled={loading || !queryInput.trim()}
-          className="rounded-lg md:rounded-xl bg-[var(--accent)] px-4 md:px-6 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-40 whitespace-nowrap"
-        >
-          Search
-        </button>
-      </form>
-
-      <div className="mb-1 flex flex-wrap items-baseline gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-          Trending topics
-        </span>
-        {trendsLoading ? (
-          <span className="text-xs text-zinc-600">Updating…</span>
-        ) : trendsSource === "google-trends" ? (
-          <span className="text-xs text-emerald-500/90">Live · Google Trends</span>
-        ) : (
-          <span className="text-xs text-zinc-600">Starter topics</span>
-        )}
-      </div>
-      <div className="mb-8 md:mb-10">
-        <TrendChips
-          trends={trendChips}
-          busy={loading}
-          onPick={(label) => {
-            setQueryInput(label);
-            const q =
-              trendsSource === "google-trends"
-                ? buildTrendChipQuery(label, preference)
-                : buildSearchQuery(label, preference);
-            void runYoutubeSearch(q);
-          }}
-        />
-      </div>
-
-      <div className="grid gap-6 md:gap-10 lg:grid-cols-5 lg:gap-8">
-        <section className="lg:col-span-2 order-1 md:order-none">
+      {/* Video layout */}
+      <div className="grid gap-6 lg:grid-cols-5 lg:gap-8">
+        <section className="lg:col-span-2">
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
             Now playing
           </h2>
-          <VideoEmbed
-            videoId={active?.id ?? null}
-            title={active?.title}
-          />
+          <VideoEmbed videoId={active?.id ?? null} title={active?.title} />
           {active ? (
-            <p className="mt-3 line-clamp-2 text-sm text-zinc-300">
-              {active.title}
-            </p>
+            <p className="mt-3 line-clamp-2 text-sm text-zinc-300">{active.title}</p>
           ) : null}
         </section>
-        <section className="lg:col-span-3 order-2 md:order-none">
+        <section className="lg:col-span-3">
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
             Results
           </h2>
@@ -224,12 +198,6 @@ export function DiscoverClient() {
           />
         </section>
       </div>
-      </div>
-      <MobileNav
-        preference={preference}
-        onPreferenceChange={setPreference}
-        disabled={loading}
-      />
-    </>
+    </div>
   );
 }
