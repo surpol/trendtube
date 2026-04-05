@@ -10,7 +10,7 @@ type Props = {
 export function VideoEmbed({ videoId, title }: Props) {
   if (!videoId) {
     return (
-      <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-white/15 bg-zinc-900/50 text-center text-sm text-zinc-500">
+      <div className="flex aspect-video w-full items-center justify-center rounded-lg md:rounded-2xl border border-dashed border-white/15 bg-zinc-900/50 text-center text-sm text-zinc-500">
         Search or pick a video to play here
       </div>
     );
@@ -19,7 +19,7 @@ export function VideoEmbed({ videoId, title }: Props) {
   const src = embedSrc(videoId);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/40">
+    <div className="overflow-hidden rounded-lg md:rounded-2xl border border-white/10 bg-black shadow-lg md:shadow-2xl shadow-black/40">
       <div className="aspect-video w-full">
         <iframe
           title={title ? `Playing: ${title}` : "YouTube video player"}
