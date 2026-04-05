@@ -8,7 +8,9 @@ import {
 import { FALLBACK_TREND_SEEDS } from "@/lib/trends";
 import type { Preference, YoutubeSearchItem } from "@/lib/types";
 import { usePreference } from "@/hooks/usePreference";
+import { useLocation } from "@/hooks/useLocation";
 import { PreferenceBar } from "@/components/PreferenceBar";
+import { LocationSelector } from "@/components/LocationSelector";
 import { TrendChips } from "@/components/TrendChips";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { VideoResults } from "@/components/VideoResults";
@@ -18,6 +20,7 @@ type TrendsSource = "google-trends" | "fallback";
 
 export function DiscoverClient() {
   const { preference, setPreference, ready } = usePreference();
+  const { location, setLocation, ready: locationReady, detecting } = useLocation();
   const [queryInput, setQueryInput] = useState("");
   const [items, setItems] = useState<YoutubeSearchItem[]>([]);
   const [active, setActive] = useState<YoutubeSearchItem | null>(null);
@@ -37,7 +40,7 @@ export function DiscoverClient() {
     setTrendsSource("fallback");
 
     const ac = new AbortController();
-    fetch(`/api/trends?preference=${encodeURIComponent(preference)}&geo=US`, {
+    fetch(`/api/trends?preference=${encodeURIComponent(preference)}&geo=${encodeURIComponent(location)}`, {
       signal: ac.signal,
     })
       .then((res) => res.json())
@@ -56,7 +59,7 @@ export function DiscoverClient() {
       .finally(() => setTrendsLoading(false));
 
     return () => ac.abort();
-  }, [preference]);
+  }, [preference, location]);
 
   const runYoutubeSearch = useCallback(async (q: string) => {
     if (!q.trim()) return;
@@ -103,7 +106,7 @@ export function DiscoverClient() {
     void runYoutubeSearch(buildSearchQuery(queryInput, preference));
   };
 
-  if (!ready) {
+  if (!ready || !locationReady) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 md:pb-8 pb-24">
         <div className="h-96 animate-pulse rounded-2xl bg-zinc-800/40" />
@@ -133,12 +136,25 @@ export function DiscoverClient() {
         </p>
       </div>
 
-      <div className="mb-6 hidden md:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PreferenceBar
-          value={preference}
-          onChange={setPreference}
-          disabled={loading}
-        />
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="hidden md:block">
+          <PreferenceBar
+            value={preference}
+            onChange={setPreference}
+            disabled={loading}
+          />
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+          <label className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            {detecting ? "Detecting location…" : "Location"}
+          </label>
+          <LocationSelector
+            value={location}
+            onChange={setLocation}
+            disabled={loading}
+            detecting={detecting}
+          />
+        </div>
       </div>
 
       {hint ? (
