@@ -52,11 +52,11 @@ export function VideoResults({
             <button
               type="button"
               onClick={() => onSelect(item)}
-              className={`group w-full overflow-hidden rounded-lg md:rounded-xl border text-left transition-all ${
+              className={`group w-full overflow-hidden rounded-lg md:rounded-xl border text-left transition-all active:scale-95 ${
                 active
-                  ? "border-[var(--accent)] ring-1 ring-[var(--accent)]/40 scale-105"
-                  : "border-white/10 hover:border-white/20 hover:scale-102"
-              } bg-zinc-900/40`}
+                  ? "border-[var(--accent)] ring-1 ring-[var(--accent)]/40 scale-105 md:scale-100"
+                  : "border-white/10 hover:border-white/20 hover:scale-102 active:opacity-80"
+              } bg-zinc-900/40 min-h-max touch-manipulation`}
             >
               <div className="relative aspect-video w-full bg-zinc-800 overflow-hidden">
                 {item.thumbnailUrl ? (

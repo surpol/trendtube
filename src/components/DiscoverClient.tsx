@@ -192,10 +192,10 @@ export function DiscoverClient() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 sm:px-6 pb-8">
+    <div className="mx-auto max-w-6xl px-3 sm:px-4 py-5 sm:py-8 sm:px-6 pb-8 animate-fade-in">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-white">
+      <div className="mb-5 sm:mb-6 animate-slide-in duration-300">
+        <h1 className="font-display text-2xl sm:text-3xl md:text-3xl font-semibold tracking-tight text-white">
           Discover
         </h1>
         <p className="mt-1 text-sm text-zinc-500 hidden sm:block">
@@ -204,8 +204,8 @@ export function DiscoverClient() {
       </div>
 
       {/* Search */}
-      <form onSubmit={onSubmit} className="mb-6 relative">
-        <div className="flex gap-2">
+      <form onSubmit={onSubmit} className="mb-5 sm:mb-6 relative animate-slide-in duration-300" style={{ animationDelay: "50ms" }}>
+        <div className="flex gap-2 sm:gap-3">
           <div className="flex-1 relative">
             <input
               type="search"
@@ -213,7 +213,7 @@ export function DiscoverClient() {
               onChange={(e) => setQueryInput(e.target.value)}
               onFocus={() => setShowHistory(true)}
               placeholder="Search videos…"
-              className="w-full min-h-11 rounded-xl border border-white/10 bg-zinc-900/60 px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40 transition"
+              className="w-full min-h-12 sm:min-h-11 rounded-lg sm:rounded-xl border border-white/10 bg-zinc-900/60 px-3 sm:px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40 transition touch-manipulation"
             />
             <SearchHistory
               history={history}
@@ -225,7 +225,7 @@ export function DiscoverClient() {
           <button
             type="submit"
             disabled={loading || !queryInput.trim()}
-            className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-40 whitespace-nowrap"
+            className="rounded-lg sm:rounded-xl bg-[var(--accent)] px-4 sm:px-5 py-3 sm:py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-40 active:scale-95 whitespace-nowrap touch-manipulation min-h-12 sm:min-h-auto"
           >
             Search
           </button>
@@ -233,12 +233,12 @@ export function DiscoverClient() {
       </form>
 
       {/* Trend chips — horizontal scrollable row with live filtering */}
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 sm:mb-3 flex items-center gap-2 animate-slide-in duration-300" style={{ animationDelay: "100ms" }}>
         <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-zinc-500">
           Trending
         </span>
         {trendsLoading ? (
-          <span className="text-xs text-zinc-600 animate-pulse">Updating…</span>
+          <span className="text-xs text-zinc-600 animate-pulse-soft">Updating…</span>
         ) : trendsSource === "google-trends" ? (
           <span className="text-xs text-emerald-500/80">Live</span>
         ) : null}
@@ -248,7 +248,7 @@ export function DiscoverClient() {
           </span>
         )}
       </div>
-      <div className="mb-8 transition-all">
+      <div className="mb-7 sm:mb-8 transition-all animate-scale-in duration-300" style={{ animationDelay: "150ms" }}>
         <TrendChips
           trends={filteredTrends}
           busy={loading}
@@ -258,27 +258,27 @@ export function DiscoverClient() {
           }}
         />
         {queryInput && filteredTrends.length === 0 && trendChips.length > 0 && (
-          <p className="text-xs text-zinc-600 mt-3">
+          <p className="text-xs text-zinc-600 mt-3 animate-fade-in duration-300">
             No matching trends for "{queryInput}"
           </p>
         )}
       </div>
 
       {error ? (
-        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 animate-in fade-in">
+        <div className="mb-6 rounded-lg sm:rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 animate-in fade-in animate-scale-in duration-300">
           {error}
         </div>
       ) : null}
 
       {/* Video layout */}
-      <div className="grid gap-6 lg:grid-cols-5 lg:gap-8">
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-5 lg:gap-8 animate-scale-in duration-300" style={{ animationDelay: "200ms" }}>
         <section className="lg:col-span-2">
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
             Now playing
           </h2>
           <VideoEmbed videoId={active?.id ?? null} title={active?.title} />
           {active ? (
-            <p className="mt-3 line-clamp-2 text-sm text-zinc-300 transition-all">{active.title}</p>
+            <p className="mt-3 line-clamp-2 text-sm text-zinc-300 transition-all animate-fade-in duration-300">{active.title}</p>
           ) : null}
         </section>
         <section className="lg:col-span-3">
