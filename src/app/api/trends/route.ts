@@ -6,61 +6,78 @@ export type TrendItem = {
 };
 
 const GENERIC_FALLBACK: TrendItem[] = [
-  { query: "Music videos", value: 75 },
-  { query: "Latest news", value: 85 },
-  { query: "Movie trailers", value: 70 },
-  { query: "Sports highlights", value: 80 },
-  { query: "Tech reviews", value: 65 },
-  { query: "Gaming", value: 90 },
-  { query: "Comedy", value: 72 },
-  { query: "Cooking", value: 60 },
+  { query: "Cavs vs Celtics", value: 95 },
+  { query: "Cavs score today", value: 88 },
+  { query: "Donovan Mitchell", value: 82 },
+  { query: "Cleveland Cavaliers", value: 79 },
+  { query: "NBA standings", value: 75 },
+  { query: "Cavs trade news", value: 72 },
+  { query: "Eastern Conference", value: 68 },
+  { query: "LeBron James news", value: 65 },
 ];
 
-/** Fetch from Google Trends explore API endpoint */
-async function fetchGoogleTrendsData(
+/**
+ * Fetch Google Trends data by querying the trends widget API
+ * This is what the web UI uses to get related queries data
+ */
+async function fetchGoogleTrendsRelated(
   keyword: string,
   geo: string,
-  property: string = "youtube",
 ): Promise<TrendItem[]> {
   try {
-    // Google Trends API endpoint - returns JSON for related queries
-    const url = new URL("https://trends.google.com/trends/api/explore");
+    // Google Trends uses this endpoint to get related queries
+    const url = new URL("https://trends.google.com/trends/api/widgetdata/relatedsearches");
     url.searchParams.set("hl", "en-US");
     url.searchParams.set("tz", "0");
     url.searchParams.set("req", JSON.stringify({
-      comparisonItem: [{ keyword, geo, time: "today 7-d" }],
+      comparisonItem: [
+        {
+          keyword: keyword,
+          geo: geo,
+          time: "now 7-d", // past 7 days
+        },
+      ],
       category: 0,
-      property,
+      property: "youtube", // Get YouTube-relevant trends
     }));
 
     const response = await fetch(url.toString(), {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Referer: "https://trends.google.com/",
       },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(6000),
     });
 
     if (!response.ok) return [];
 
     let text = await response.text();
-    // Google wraps JSON response - strip the prefix
-    text = text.replace(/^\)\]\}'\n/, "");
+    // Google wraps JSON response with )]}' prefix
+    text = text.replace(/^\)\]\}'\n/, "").trim();
+
+    if (!text) return [];
 
     const data = JSON.parse(text) as {
       default?: {
-        timelineData?: Array<{ value?: number[] }>;
-        rankedList?: Array<{ rankedKeyword?: Array<{ query?: string; value?: number }> }>;
+        rankedList?: Array<{
+          rankedKeyword?: Array<{
+            query?: string;
+            value?: number;
+            formattedValue?: string;
+            hasData?: boolean[];
+            link?: string;
+          }>;
+        }>;
       };
     };
 
-    // Extract related queries from rankedList
     const trends: TrendItem[] = [];
     const lists = data.default?.rankedList ?? [];
 
     for (const block of lists) {
       for (const kw of block.rankedKeyword ?? []) {
-        if (kw.query) {
+        if (kw.query && kw.value) {
           trends.push({
             query: kw.query,
             value: kw.value,
@@ -70,12 +87,15 @@ async function fetchGoogleTrendsData(
     }
 
     return trends.slice(0, 20);
-  } catch {
+  } catch (err) {
+    console.error("[trends] relatedsearches fetch failed:", err instanceof Error ? err.message : String(err));
     return [];
   }
 }
 
-/** Fetch daily trending searches */
+/**
+ * Fetch daily trending searches for a region
+ */
 async function fetchDailyTrends(geo: string): Promise<TrendItem[]> {
   try {
     const url = new URL("https://trends.google.com/trends/api/dailytrends");
@@ -86,21 +106,28 @@ async function fetchDailyTrends(geo: string): Promise<TrendItem[]> {
     const response = await fetch(url.toString(), {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Referer: "https://trends.google.com/",
       },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(6000),
     });
 
     if (!response.ok) return [];
 
     let text = await response.text();
-    // Google wraps JSON response
-    text = text.replace(/^\)\]\}'\n/, "");
+    text = text.replace(/^\)\]\}'\n/, "").trim();
+
+    if (!text) return [];
 
     const data = JSON.parse(text) as {
       default?: {
         trendingSearchesDays?: Array<{
-          trendingSearches?: Array<{ title?: { query?: string } }>;
+          trendingSearches?: Array<{
+            title?: { query?: string };
+            formattedTraffic?: string;
+            relatedQueries?: Array<{ query?: string }>;
+            articles?: Array<{ title?: string; url?: string }>;
+          }>;
         }>;
       };
     };
@@ -111,16 +138,27 @@ async function fetchDailyTrends(geo: string): Promise<TrendItem[]> {
     for (const day of days) {
       for (const search of day.trendingSearches ?? []) {
         if (search.title?.query) {
+          // Extract numeric value from formatted traffic string (e.g., "100K+" → 90)
+          let value = 70;
+          if (search.formattedTraffic) {
+            const match = search.formattedTraffic.match(/^(\d+)/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              value = Math.min(100, Math.max(50, Math.floor(num / 10)));
+            }
+          }
+
           trends.push({
             query: search.title.query,
-            value: Math.floor(Math.random() * 40 + 60), // Simulate value
+            value,
           });
         }
       }
     }
 
     return trends.slice(0, 20);
-  } catch {
+  } catch (err) {
+    console.error("[trends] dailytrends fetch failed:", err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -135,9 +173,7 @@ function getCacheKey(query: string, geo: string, type: string): string {
   return `${type}:${query}:${geo}`;
 }
 
-function getCached(key: string): (typeof cache)["get"] extends (k: string) => infer R
-  ? R
-  : never {
+function getCached(key: string) {
   const cached = cache.get(key);
   if (cached && cached.expires > Date.now()) {
     return cached;
@@ -176,7 +212,7 @@ export async function GET(request: Request) {
         });
       }
 
-      const data = await fetchGoogleTrendsData(query, geo, "youtube");
+      const data = await fetchGoogleTrendsRelated(query, geo);
       if (data.length > 0) {
         setCache(cacheKey, data, "google");
         return NextResponse.json({ queries: data, source: "google" });
@@ -198,8 +234,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ queries: data, source: "google" });
       }
     }
-  } catch {
-    // Fall through to fallback
+  } catch (err) {
+    console.error("[trends] error:", err instanceof Error ? err.message : String(err));
   }
 
   return NextResponse.json({
