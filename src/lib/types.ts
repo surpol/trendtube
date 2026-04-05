@@ -4,4 +4,6 @@ export type YoutubeSearchItem = {
   channelTitle: string;
   thumbnailUrl: string;
   publishedAt: string;
+  viewCount?: string;
+  duration?: string;
 };

@@ -44,13 +44,21 @@ function rendererToItem(vr: Record<string, unknown>): YoutubeSearchItem | null {
   if (typeof videoId !== "string" || !videoId) return null;
   const title = textFromObject(vr.title) || "Untitled";
   const publishedAt = textFromObject(vr.publishedTimeText) || "";
-  return {
+  const viewCount = textFromObject(vr.viewCountText) || textFromObject(vr.shortViewCountText);
+  const duration = textFromObject(vr.lengthText);
+
+  const item: YoutubeSearchItem = {
     id: videoId,
     title,
     channelTitle: channelFromRenderer(vr),
     thumbnailUrl: pickThumbnail(vr.thumbnail),
     publishedAt,
   };
+
+  if (viewCount) item.viewCount = viewCount;
+  if (duration) item.duration = duration;
+
+  return item;
 }
 
 function walk(node: unknown, ordered: YoutubeSearchItem[], seen: Set<string>): void {
