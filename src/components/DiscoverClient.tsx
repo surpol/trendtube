@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { YoutubeSearchItem } from "@/lib/types";
 import { useLocation } from "@/hooks/useLocation";
-import { LocationSelector } from "@/components/LocationSelector";
 import { TrendChips } from "@/components/TrendChips";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { VideoResults } from "@/components/VideoResults";
@@ -22,7 +21,7 @@ const GENERIC_FALLBACK = [
 ];
 
 export function DiscoverClient() {
-  const { location, setLocation, ready: locationReady, detecting } = useLocation();
+  const { location, ready: locationReady } = useLocation();
   const [queryInput, setQueryInput] = useState("");
   const [items, setItems] = useState<YoutubeSearchItem[]>([]);
   const [active, setActive] = useState<YoutubeSearchItem | null>(null);
@@ -123,20 +122,14 @@ export function DiscoverClient() {
         </p>
       </div>
 
-      {/* Search + Location */}
-      <form onSubmit={onSubmit} className="mb-4 flex gap-2">
+      {/* Search */}
+      <form onSubmit={onSubmit} className="mb-6 flex gap-2">
         <input
           type="search"
           value={queryInput}
           onChange={(e) => setQueryInput(e.target.value)}
           placeholder="Search videos…"
           className="min-h-11 flex-1 rounded-xl border border-white/10 bg-zinc-900/60 px-4 text-sm text-white placeholder:text-zinc-500 focus:border-[var(--accent)]/60 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
-        />
-        <LocationSelector
-          value={location}
-          onChange={setLocation}
-          disabled={loading}
-          detecting={detecting}
         />
         <button
           type="submit"
